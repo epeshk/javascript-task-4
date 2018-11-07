@@ -13,31 +13,97 @@ const isStar = true;
 function getEmitter() {
     return {
 
+        subscriptions: new Map(),
+
         /**
          * Подписаться на событие
          * @param {String} event
          * @param {Object} context
          * @param {Function} handler
+         * @returns {Object}
          */
         on: function (event, context, handler) {
             console.info(event, context, handler);
+
+            return this._on(event, context, handler, undefined);
+        },
+
+        _on: function (event, context, handler, state) {
+            let eventMap = obtainMapValue(this.subscriptions, event, () => new Map());
+            let handlers = obtainMapValue(eventMap, context, () => []);
+
+            handlers.push({
+                func: handler,
+                state: state
+            });
+
+            return this;
         },
 
         /**
          * Отписаться от события
          * @param {String} event
          * @param {Object} context
+         * @returns {Object}
          */
         off: function (event, context) {
             console.info(event, context);
+
+            let offOne = e => {
+                let eventMap = this.subscriptions.get(e);
+                eventMap.delete(context);
+            };
+
+            let eventNs = event + '.';
+
+            Array
+                .from(this.subscriptions.keys())
+                .filter(x => x === event || x.startsWith(eventNs))
+                .forEach(x => offOne(x));
+
+            return this;
         },
 
         /**
          * Уведомить о событии
          * @param {String} event
+         * @returns {Object}
          */
         emit: function (event) {
             console.info(event);
+
+            let emitOne = e => {
+                let eventMap = this.subscriptions.get(e);
+                if (!eventMap) {
+                    return;
+                }
+                eventMap.forEach((value, key) => value.forEach(handler => {
+                    let state = handler.state;
+                    if (state) {
+                        ++state.calls;
+
+                        if (state.limit && state.calls > state.limit) {
+                            return;
+                        }
+                        if (state.freq && (state.calls - 1) % state.freq !== 0) {
+                            return;
+                        }
+                    }
+
+                    handler.func.apply(key);
+                }));
+            };
+
+            for (;;) {
+                emitOne(event);
+                let separatorIndex = event.lastIndexOf('.');
+                if (separatorIndex < 0) {
+                    break;
+                }
+                event = event.slice(0, separatorIndex);
+            }
+
+            return this;
         },
 
         /**
@@ -47,9 +113,15 @@ function getEmitter() {
          * @param {Object} context
          * @param {Function} handler
          * @param {Number} times – сколько раз получить уведомление
+         * @returns {Object}
          */
         several: function (event, context, handler, times) {
             console.info(event, context, handler, times);
+
+            return this._on(event, context, handler, {
+                calls: 0,
+                limit: times
+            });
         },
 
         /**
@@ -59,11 +131,28 @@ function getEmitter() {
          * @param {Object} context
          * @param {Function} handler
          * @param {Number} frequency – как часто уведомлять
+         * @returns {Object}
          */
         through: function (event, context, handler, frequency) {
             console.info(event, context, handler, frequency);
+
+            return this._on(event, context, handler, {
+                calls: 0,
+                freq: frequency
+            });
         }
     };
+}
+
+function obtainMapValue(map, key, valueFactory) {
+    if (!map.has(key)) {
+        let value = valueFactory();
+        map.set(key, value);
+
+        return value;
+    }
+
+    return map.get(key);
 }
 
 module.exports = {
