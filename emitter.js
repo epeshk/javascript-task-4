@@ -12,7 +12,6 @@ const isStar = true;
  */
 function getEmitter() {
     return {
-
         subscriptions: new Map(),
 
         /**
@@ -23,8 +22,6 @@ function getEmitter() {
          * @returns {Object}
          */
         on: function (event, context, handler) {
-            console.info(event, context, handler);
-
             return this._on(event, context, handler, undefined);
         },
 
@@ -47,8 +44,6 @@ function getEmitter() {
          * @returns {Object}
          */
         off: function (event, context) {
-            console.info(event, context);
-
             let offOne = e => {
                 let eventMap = this.subscriptions.get(e);
                 eventMap.delete(context);
@@ -70,8 +65,6 @@ function getEmitter() {
          * @returns {Object}
          */
         emit: function (event) {
-            console.info(event);
-
             let emitOne = e => {
                 let eventMap = this.subscriptions.get(e);
                 if (!eventMap) {
@@ -116,8 +109,6 @@ function getEmitter() {
          * @returns {Object}
          */
         several: function (event, context, handler, times) {
-            console.info(event, context, handler, times);
-
             return this._on(event, context, handler, {
                 calls: 0,
                 limit: times
@@ -134,8 +125,6 @@ function getEmitter() {
          * @returns {Object}
          */
         through: function (event, context, handler, frequency) {
-            console.info(event, context, handler, frequency);
-
             return this._on(event, context, handler, {
                 calls: 0,
                 freq: frequency
@@ -144,6 +133,14 @@ function getEmitter() {
     };
 }
 
+/**
+ * Получает значение из Map. Если ключа нет - добавляет значение.
+ * @star
+ * @param {Map} map
+ * @param {Object} key
+ * @param {Function} valueFactory
+ * @returns {Object}
+ */
 function obtainMapValue(map, key, valueFactory) {
     if (!map.has(key)) {
         let value = valueFactory();
